@@ -3,6 +3,10 @@ package di_rover;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 public class Main {
 
@@ -13,40 +17,34 @@ public class Main {
         }
 
         long startTs = System.currentTimeMillis(); // start time
-        for (String text : texts) {
-            showText(text);
+
+        try (final ExecutorService threadPool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors())) {
+            List<Future<Integer>> futures = new ArrayList<>();
+
+            for (String text : texts) {
+                final Future<Integer> task = threadPool.submit(() -> showText(text));
+                futures.add(task);
+            }
+
+            Integer maxRange = 0;
+
+            for (Future<Integer> future : futures) {
+                final Integer resultOfTask = future.get();
+
+                if (resultOfTask > maxRange) {
+                    maxRange = resultOfTask;
+                }
+            }
+
+            System.out.println("Max range: " + maxRange);
+
+            long endTs = System.currentTimeMillis(); // end time
+
+            System.out.println("Time: " + (endTs - startTs) + "ms");
+
+        } catch (ExecutionException e) {
+            throw new RuntimeException(e);
         }
-        long endTs = System.currentTimeMillis(); // end time
-
-        System.out.println("Time: " + (endTs - startTs) + "ms");
-
-        long startTsTread = System.currentTimeMillis(); // start time
-
-        List<Thread> threads = new ArrayList<>();
-
-        ThreadGroup group = new ThreadGroup("Group");
-
-
-        for (String text : texts) {
-
-            Thread thread = new Thread(group, () -> {
-                showText(text);
-            });
-
-            thread.start();
-
-            threads.add(thread);
-
-        }
-
-        for (Thread thread : threads) {
-            thread.join();
-        }
-
-        group.interrupt();
-
-        long endTsTread = System.currentTimeMillis(); // end time
-        System.out.println("Time: " + (endTsTread - startTsTread) + "ms");
     }
 
     public static String generateText(String letters, int length) {
@@ -58,7 +56,7 @@ public class Main {
         return text.toString();
     }
 
-    public static void showText(String text) {
+    public static int showText(String text) {
         int maxSize = 0;
         for (int i = 0; i < text.length(); i++) {
             for (int j = 0; j < text.length(); j++) {
@@ -78,6 +76,8 @@ public class Main {
             }
         }
         System.out.println(text.substring(0, 100) + " -> " + maxSize);
+
+        return maxSize;
     }
 
 
